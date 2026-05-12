@@ -1,0 +1,800 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>ตรวจบันทึกพยาบาล — ER มหาราชนครศรีธรรมราช</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Sarabun:wght@300;400;500;600&display=swap" rel="stylesheet">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+<style>
+:root{
+  --bg:#f7f8fa;
+  --surface:#ffffff;
+  --surface2:#f0f2f5;
+  --border:#e2e5ea;
+  --text:#1a1d23;
+  --text2:#6b7280;
+  --text3:#9ca3af;
+  --primary:#1a56db;
+  --primary-light:#eff4ff;
+  --success:#15803d;
+  --success-bg:#f0fdf4;
+  --danger:#b91c1c;
+  --danger-bg:#fef2f2;
+  --warn:#b45309;
+  --warn-bg:#fffbeb;
+  --radius:10px;
+  --radius-sm:6px;
+  --shadow:0 1px 3px rgba(0,0,0,0.08),0 1px 2px rgba(0,0,0,0.04);
+}
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:'Sarabun',sans-serif;background:var(--bg);color:var(--text);font-size:15px;line-height:1.6;min-height:100vh}
+
+/* Layout */
+.app-header{background:var(--surface);border-bottom:1px solid var(--border);padding:0 1.25rem;position:sticky;top:0;z-index:100;box-shadow:var(--shadow)}
+.header-inner{max-width:900px;margin:0 auto;display:flex;align-items:center;justify-content:space-between;height:56px}
+.header-title{font-size:15px;font-weight:600;color:var(--text)}
+.header-sub{font-size:12px;color:var(--text2);margin-top:1px}
+.record-pill{font-size:12px;background:var(--primary-light);color:var(--primary);padding:3px 10px;border-radius:20px;font-weight:500}
+
+.nav{background:var(--surface);border-bottom:1px solid var(--border);padding:0 1.25rem;overflow-x:auto;white-space:nowrap}
+.nav-inner{max-width:900px;margin:0 auto;display:flex}
+.nav-btn{display:inline-flex;align-items:center;gap:6px;padding:12px 16px;font-size:14px;font-family:'Sarabun',sans-serif;border:none;background:none;cursor:pointer;color:var(--text2);border-bottom:2px solid transparent;margin-bottom:-1px;font-weight:400;transition:color 0.15s}
+.nav-btn:hover{color:var(--text)}
+.nav-btn.active{color:var(--primary);border-bottom-color:var(--primary);font-weight:500}
+.nav-icon{font-size:16px}
+
+.main{max-width:900px;margin:0 auto;padding:1.25rem}
+.page{display:none}.page.active{display:block}
+
+/* Cards */
+.card{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);box-shadow:var(--shadow);margin-bottom:12px;overflow:hidden}
+.card-header{padding:12px 16px;display:flex;justify-content:space-between;align-items:center;border-bottom:1px solid var(--border)}
+.card-header-title{font-size:14px;font-weight:500}
+.card-body{padding:4px 16px 14px}
+
+/* Form */
+.form-row{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:12px}
+@media(max-width:500px){.form-row{grid-template-columns:1fr}}
+.field label{display:block;font-size:12px;color:var(--text2);margin-bottom:4px;font-weight:500}
+input,select{width:100%;padding:8px 10px;border:1px solid var(--border);border-radius:var(--radius-sm);font-family:'Sarabun',sans-serif;font-size:14px;color:var(--text);background:var(--surface);transition:border-color 0.15s}
+input:focus,select:focus{outline:none;border-color:var(--primary)}
+
+/* Score input */
+.item-row{display:grid;grid-template-columns:1fr 110px 54px;gap:8px;align-items:center;padding:8px 0;border-bottom:1px solid var(--border)}
+.item-row:last-child{border-bottom:none}
+.item-label{font-size:13.5px}
+.item-sub{font-size:11px;color:var(--text3);margin-top:1px}
+.item-max{font-size:12px;color:var(--text3);text-align:center}
+select.score{font-size:13px;padding:5px 6px}
+
+/* Section header colors */
+.sec-assess{background:#f0fdf4;border-color:#bbf7d0}
+.sec-problem{background:#fffbeb;border-color:#fde68a}
+.sec-interv{background:#fff7ed;border-color:#fed7aa}
+.sec-risk{background:#eff6ff;border-color:#bfdbfe}
+.sec-eval{background:#faf5ff;border-color:#e9d5ff}
+.sec-record{background:#f9fafb;border-color:#e5e7eb}
+.sec-label-assess{color:#166534}
+.sec-label-problem{color:#92400e}
+.sec-label-interv{color:#9a3412}
+.sec-label-risk{color:#1e40af}
+.sec-label-eval{color:#6b21a8}
+.sec-label-record{color:#374151}
+
+/* Summary bar */
+.summary-bar{background:var(--surface2);border:1px solid var(--border);border-radius:var(--radius);padding:14px 18px;display:flex;justify-content:space-between;align-items:center;margin-bottom:14px}
+.summary-score{font-size:28px;font-weight:600}
+.summary-label{font-size:12px;color:var(--text2);margin-bottom:2px}
+.summary-pct{font-size:13px;color:var(--text2)}
+
+/* Badges */
+.badge{display:inline-flex;align-items:center;gap:4px;font-size:12px;padding:4px 11px;border-radius:20px;font-weight:500}
+.badge-pass{background:var(--success-bg);color:var(--success)}
+.badge-warn{background:var(--warn-bg);color:var(--warn)}
+.badge-fail{background:var(--danger-bg);color:var(--danger)}
+
+/* Buttons */
+.btn{display:inline-flex;align-items:center;gap:6px;padding:9px 18px;border-radius:var(--radius-sm);font-family:'Sarabun',sans-serif;font-size:14px;cursor:pointer;font-weight:500;transition:all 0.15s;border:1px solid var(--border)}
+.btn-primary{background:var(--primary);color:#fff;border-color:var(--primary)}
+.btn-primary:hover{background:#1648c4}
+.btn-secondary{background:var(--surface);color:var(--text)}
+.btn-secondary:hover{background:var(--surface2)}
+.btn-danger{background:var(--danger-bg);color:var(--danger);border-color:#fecaca}
+.btn-danger:hover{background:#fee2e2}
+.btn-sm{padding:6px 12px;font-size:13px}
+
+/* Metrics */
+.metric-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(130px,1fr));gap:10px;margin-bottom:16px}
+.metric{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:14px;box-shadow:var(--shadow)}
+.metric-label{font-size:12px;color:var(--text2);margin-bottom:4px}
+.metric-val{font-size:24px;font-weight:600}
+.metric-val-sm{font-size:18px;font-weight:600}
+
+/* Table */
+.tbl-wrap{overflow-x:auto}
+table{width:100%;border-collapse:collapse;font-size:13.5px}
+th{background:var(--surface2);padding:9px 12px;text-align:left;font-weight:500;font-size:12px;color:var(--text2);border-bottom:1px solid var(--border);white-space:nowrap}
+td{padding:9px 12px;border-bottom:1px solid var(--border);color:var(--text)}
+tr:last-child td{border-bottom:none}
+tbody tr:hover td{background:var(--surface2)}
+
+/* Progress */
+.prog-wrap{background:var(--surface2);border-radius:4px;height:7px;overflow:hidden}
+.prog-fill{height:100%;border-radius:4px;transition:width 0.4s}
+
+/* Section score row */
+.sec-row{display:flex;align-items:center;gap:10px;padding:7px 0;border-bottom:1px solid var(--border);font-size:13px}
+.sec-row:last-child{border-bottom:none}
+.sec-row-label{min-width:130px;flex-shrink:0}
+.sec-row-bar{flex:1}
+.sec-row-val{min-width:110px;text-align:right;font-size:12px;color:var(--text2)}
+
+/* Individual cards */
+.nurse-card{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);margin-bottom:12px;overflow:hidden;box-shadow:var(--shadow)}
+.nurse-header{padding:12px 16px;display:flex;justify-content:space-between;align-items:center;background:var(--surface2);cursor:pointer;user-select:none}
+.nurse-header:hover{background:#e8eaed}
+.nurse-body{padding:14px 16px;display:none}
+.nurse-body.open{display:block}
+.round-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-bottom:14px}
+.round-cell{border-radius:var(--radius-sm);padding:10px;text-align:center;border:1px solid var(--border)}
+.round-num{font-size:20px;font-weight:600}
+.round-label{font-size:11px;color:var(--text2);margin-bottom:4px}
+.round-pct{font-size:11px;margin-top:2px}
+
+/* Toast */
+.toast{position:fixed;bottom:20px;left:50%;transform:translateX(-50%) translateY(80px);background:#1a1d23;color:#fff;padding:10px 20px;border-radius:var(--radius);font-size:13.5px;opacity:0;transition:all 0.3s;pointer-events:none;z-index:999;white-space:nowrap;box-shadow:0 4px 12px rgba(0,0,0,0.15)}
+.toast.show{opacity:1;transform:translateX(-50%) translateY(0)}
+
+/* Empty state */
+.empty{text-align:center;padding:3rem 1rem;color:var(--text2)}
+.empty-icon{font-size:40px;margin-bottom:12px}
+.empty-text{font-size:14px}
+
+/* Responsive */
+@media(max-width:600px){
+  .main{padding:1rem 0.75rem}
+  .summary-score{font-size:22px}
+  .metric-val{font-size:20px}
+}
+
+.divider{display:flex;justify-content:flex-end;gap:8px;margin-top:14px;padding-top:14px;border-top:1px solid var(--border)}
+</style>
+</head>
+<body>
+
+<header class="app-header">
+  <div class="header-inner">
+    <div>
+      <div class="header-title">ตรวจบันทึกทางการพยาบาล</div>
+      <div class="header-sub">ห้องฉุกเฉิน โรงพยาบาลมหาราชนครศรีธรรมราช</div>
+    </div>
+    <div class="record-pill">ข้อมูล <span id="total-count">0</span> รายการ</div>
+  </div>
+</header>
+
+<nav class="nav">
+  <div class="nav-inner">
+    <button class="nav-btn active" onclick="showPage('form',this)">
+      <span class="nav-icon">✏️</span> บันทึกคะแนน
+    </button>
+    <button class="nav-btn" onclick="showPage('individual',this)">
+      <span class="nav-icon">👤</span> รายบุคคล
+    </button>
+    <button class="nav-btn" onclick="showPage('overview',this)">
+      <span class="nav-icon">📊</span> ภาพรวม
+    </button>
+    <button class="nav-btn" onclick="showPage('guide',this)">
+      <span class="nav-icon">📋</span> คู่มือ
+    </button>
+  </div>
+</nav>
+
+<main class="main">
+
+  <!-- ========== PAGE: FORM ========== -->
+  <div id="page-form" class="page active">
+
+    <div class="form-row">
+      <div class="field">
+        <label>ชื่อพยาบาลผู้บันทึก *</label>
+        <input type="text" id="nurse-name" placeholder="ชื่อ-สกุล">
+      </div>
+      <div class="field">
+        <label>ครั้งที่ตรวจ *</label>
+        <select id="round-sel">
+          <option value="1">ครั้งที่ 1</option>
+          <option value="2">ครั้งที่ 2</option>
+          <option value="3">ครั้งที่ 3</option>
+        </select>
+      </div>
+      <div class="field">
+        <label>วันที่ตรวจ</label>
+        <input type="date" id="audit-date">
+      </div>
+      <div class="field">
+        <label>ผู้ตรวจ</label>
+        <input type="text" id="auditor" placeholder="ชื่อผู้ตรวจ">
+      </div>
+    </div>
+
+    <div class="summary-bar">
+      <div>
+        <div class="summary-label">คะแนนรวม (เต็ม 200)</div>
+        <div style="display:flex;align-items:baseline;gap:10px">
+          <span class="summary-score" id="live-total">0</span>
+          <span class="summary-pct">คะแนน &nbsp;|&nbsp; <span id="live-pct">0.0</span>%</span>
+        </div>
+      </div>
+      <span class="badge badge-fail" id="live-badge">❌ ไม่ผ่านเกณฑ์</span>
+    </div>
+
+    <div id="form-sections"></div>
+
+    <div class="divider">
+      <button class="btn btn-secondary" onclick="clearForm()">🔄 ล้างข้อมูล</button>
+      <button class="btn btn-danger btn-sm" onclick="deleteRecord()" id="btn-delete" style="display:none">🗑 ลบรายการนี้</button>
+      <button class="btn btn-primary" onclick="saveRecord()">💾 บันทึกคะแนน</button>
+    </div>
+  </div>
+
+  <!-- ========== PAGE: INDIVIDUAL ========== -->
+  <div id="page-individual" class="page">
+    <div style="display:flex;gap:8px;margin-bottom:14px;align-items:center">
+      <input type="text" id="search-input" placeholder="🔍  ค้นหาชื่อพยาบาล..." oninput="renderIndividual()" style="flex:1">
+      <button class="btn btn-secondary" onclick="exportExcel()">⬇️ Export Excel</button>
+    </div>
+    <div id="individual-list"></div>
+  </div>
+
+  <!-- ========== PAGE: OVERVIEW ========== -->
+  <div id="page-overview" class="page">
+    <div id="overview-content"></div>
+  </div>
+
+  <!-- ========== PAGE: GUIDE ========== -->
+  <div id="page-guide" class="page">
+    <div id="guide-content"></div>
+  </div>
+
+</main>
+
+<div class="toast" id="toast"></div>
+
+<script>
+// ==================== DATA ====================
+const SECTIONS = [
+  {key:'assess', label:'Assessment — การประเมินแรกรับ', sub:'กลุ่มการพยาบาล ข้อ 1', max:70,
+   hdrClass:'sec-assess', lblClass:'sec-label-assess',
+   items:[
+    {k:'cc',   label:'Chief Complaint', hint:'', w:1, max:2, type:'012'},
+    {k:'pi',   label:'Present Illness', hint:'', w:2, max:4, type:'012'},
+    {k:'fm',   label:'First Manifestation', hint:'', w:1, max:2, type:'012'},
+    {k:'pa',   label:'Past Illness', hint:'', w:1, max:2, type:'012'},
+    {k:'al',   label:'Allergies', hint:'ระบุชื่อยา/สาร+อาการ หรือ NKDA', w:1, max:2, type:'012'},
+    {k:'im',   label:'Immunization', hint:'', w:1, max:2, type:'012'},
+    {k:'lm',   label:'Last Meal', hint:'ระบุเวลามื้ออาหารล่าสุด', w:1, max:2, type:'012'},
+    {k:'vs',   label:'Vital Signs', hint:'BP, PR, RR, BT, O₂sat, Pain — ครบ 6 รายการ', w:2, max:4, type:'012'},
+    {k:'gcs',  label:'GCS', hint:'E/V/M + คะแนนรวม', w:1, max:2, type:'012'},
+    {k:'news', label:'NEWS Score', hint:'', w:1, max:2, type:'012'},
+    {k:'bw',   label:'Body Weight (BW)', hint:'หน่วย กก.', w:1, max:2, type:'012'},
+    {k:'dtx',  label:'DTX', hint:'พร้อมเวลา', w:1, max:2, type:'012'},
+    {k:'acu',  label:'Acuity Level', hint:'ESI 1–5', w:1, max:2, type:'012'},
+    {k:'pri',  label:'Primary Survey', hint:'ABCDE ครบทุกระบบ', w:10, max:20, type:'012'},
+    {k:'sec',  label:'Secondary Survey', hint:'Head-to-Toe', w:10, max:20, type:'012'},
+  ]},
+  {key:'prob', label:'Problem — การระบุปัญหา', sub:'กลุ่มการพยาบาล ข้อ 2', max:24,
+   hdrClass:'sec-problem', lblClass:'sec-label-problem',
+   items:[
+    {k:'pa', label:'ปัญหา A — Airway', hint:'', w:2, max:4, type:'012'},
+    {k:'pb', label:'ปัญหา B — Breathing', hint:'', w:2, max:4, type:'012'},
+    {k:'pc', label:'ปัญหา C — Circulation', hint:'', w:2, max:4, type:'012'},
+    {k:'pd', label:'ปัญหา D — Disability', hint:'', w:2, max:4, type:'012'},
+    {k:'pe', label:'ปัญหา E — Exposure', hint:'', w:2, max:4, type:'012'},
+    {k:'po', label:'ปัญหาอื่นๆ', hint:'', w:2, max:4, type:'012'},
+  ]},
+  {key:'interv', label:'Intervention — กิจกรรมการพยาบาล', sub:'กลุ่มการพยาบาล ข้อ 3', max:38,
+   hdrClass:'sec-interv', lblClass:'sec-label-interv',
+   items:[
+    {k:'pos', label:'Position', hint:'ระบุท่าและเหตุผล', w:1, max:2, type:'012'},
+    {k:'na',  label:'Nursing Activity สอดคล้อง A', hint:'', w:2, max:4, type:'012'},
+    {k:'nb',  label:'Nursing Activity สอดคล้อง B', hint:'', w:2, max:4, type:'012'},
+    {k:'nc',  label:'Nursing Activity สอดคล้อง C', hint:'', w:2, max:4, type:'012'},
+    {k:'nd',  label:'Nursing Activity สอดคล้อง D', hint:'', w:2, max:4, type:'012'},
+    {k:'ne',  label:'Nursing Activity สอดคล้อง E', hint:'', w:2, max:4, type:'012'},
+    {k:'no',  label:'Nursing Activity สอดคล้องอื่นๆ', hint:'', w:2, max:4, type:'012'},
+    {k:'e1',  label:'การให้ข้อมูลแรกรับ', hint:'ข้อ 5', w:2, max:4, type:'012'},
+    {k:'e2',  label:'การให้ข้อมูลขณะดูแล', hint:'ข้อ 5', w:2, max:4, type:'012'},
+    {k:'e3',  label:'การให้ข้อมูลก่อนจำหน่าย', hint:'ข้อ 8', w:2, max:4, type:'012'},
+  ]},
+  {key:'risk', label:'Risk — ความปลอดภัย', sub:'กลุ่มการพยาบาล ข้อ 3', max:10,
+   hdrClass:'sec-risk', lblClass:'sec-label-risk',
+   items:[
+    {k:'med', label:'Medication / IV / เลือด', hint:'ชนิด+ขนาด+วิธีให้+ผล', w:2, max:4, type:'012'},
+    {k:'mon', label:'Monitoring', hint:'V/S ตาม acuity', w:2, max:4, type:'012'},
+    {k:'idn', label:'Identification', hint:'ยืนยันตัวตน 2 สิ่ง', w:1, max:2, type:'012'},
+  ]},
+  {key:'eval', label:'Evaluation — การประเมินผล', sub:'กลุ่มการพยาบาล ข้อ 4', max:40,
+   hdrClass:'sec-eval', lblClass:'sec-label-eval',
+   items:[
+    {k:'nre', label:'NEWS Reassessment', hint:'ต้องมี V/S + อาการร่วมทั้งคู่', w:10, max:20, type:'012'},
+    {k:'ds',  label:'สถานะการจำหน่าย', hint:'Admit / Home / Refer', w:1, max:2, type:'012'},
+    {k:'dt',  label:'วันที่ เวลาจำหน่าย', hint:'', w:1, max:2, type:'012'},
+    {k:'pd',  label:'ผลประเมินก่อนจำหน่าย', hint:'ต้องมีอาการร่วมด้วยเสมอ', w:3, max:6, type:'012'},
+    {k:'ref', label:'ประสานการดูแลต่อเนื่อง', hint:'ข้อ 6 — ระบุหน่วยงาน', w:4, max:8, type:'012'},
+  ]},
+  {key:'rec', label:'Record Quality — คุณภาพการบันทึก', sub:'กลุ่มการพยาบาล ข้อ 9', max:18,
+   hdrClass:'sec-record', lblClass:'sec-label-record',
+   items:[
+    {k:'r91', label:'ความสมบูรณ์ของเวชระเบียน', hint:'ข้อ 9.1 | กรอก 0 / 5 / 10 โดยตรง', w:null, max:10, type:'0510'},
+    {k:'r92', label:'บันทึกได้อ่านออก', hint:'ข้อ 9.2 | กรอก 0 / 4 / 8 โดยตรง', w:null, max:8, type:'048'},
+  ]},
+]
+
+const SEC_KEYS = SECTIONS.map(s=>s.key)
+const SEC_MAX  = Object.fromEntries(SECTIONS.map(s=>[s.key,s.max]))
+const SEC_LABEL= Object.fromEntries(SECTIONS.map(s=>[s.key,s.label.split('—')[0].trim()]))
+
+// ==================== STORAGE ====================
+const STORAGE_KEY = 'nursing_audit_v2'
+
+function loadData(){
+  try{ return JSON.parse(localStorage.getItem(STORAGE_KEY)||'[]') }
+  catch(e){ return [] }
+}
+function saveData(arr){
+  localStorage.setItem(STORAGE_KEY, JSON.stringify(arr))
+  document.getElementById('total-count').textContent = arr.length
+}
+let records = loadData()
+document.getElementById('total-count').textContent = records.length
+
+// ==================== FORM BUILD ====================
+function buildForm(){
+  const wrap = document.getElementById('form-sections')
+  wrap.innerHTML = ''
+  SECTIONS.forEach(sec => {
+    const card = document.createElement('div')
+    card.className = 'card'
+    const hdr = document.createElement('div')
+    hdr.className = `card-header ${sec.hdrClass}`
+    hdr.innerHTML = `
+      <div>
+        <div class="card-header-title ${sec.lblClass}">${sec.label}</div>
+        <div style="font-size:11px;color:#6b7280">${sec.sub} | เต็ม ${sec.max} คะแนน</div>
+      </div>
+      <span style="font-size:13px;font-weight:500;color:#374151">ได้ <span id="ss-${sec.key}">0</span> คะแนน</span>`
+    card.appendChild(hdr)
+    const body = document.createElement('div')
+    body.className = 'card-body'
+    sec.items.forEach(item => {
+      let opts = ''
+      if(item.type==='012')
+        opts = `<option value="">—</option><option value="0">0 — ไม่มี</option><option value="1">1 — มีแต่ไม่สมบูรณ์</option><option value="2">2 — สมบูรณ์ถูกต้อง</option><option value="NF">NF — ไม่จำเป็น</option>`
+      else if(item.type==='0510')
+        opts = `<option value="">—</option><option value="0">0 — ไม่มีเลย</option><option value="5">5 — มีแต่ไม่ครบ</option><option value="10">10 — ครบสมบูรณ์</option>`
+      else
+        opts = `<option value="">—</option><option value="0">0 — อ่านไม่ออก</option><option value="4">4 — อ่านได้บางส่วน</option><option value="8">8 — อ่านออกชัดเจน</option>`
+
+      const row = document.createElement('div')
+      row.className = 'item-row'
+      row.innerHTML = `
+        <div>
+          <div class="item-label">${item.label}</div>
+          ${item.hint ? `<div class="item-sub">${item.hint}</div>` : ''}
+        </div>
+        <select class="score" id="i-${sec.key}-${item.k}" onchange="calcLive()">${opts}</select>
+        <div class="item-max">/ ${item.max}</div>`
+      body.appendChild(row)
+    })
+    card.appendChild(body)
+    wrap.appendChild(card)
+  })
+}
+
+function getScore(secKey, itemKey, weight, type){
+  const el = document.getElementById(`i-${secKey}-${itemKey}`)
+  const v = el ? el.value : ''
+  if(v===''||v==='NF') return 0
+  const n = parseFloat(v)
+  if(isNaN(n)) return 0
+  return type==='012' ? n*weight : n
+}
+
+function calcLive(){
+  let total = 0
+  SECTIONS.forEach(sec => {
+    let s = 0
+    sec.items.forEach(item => { s += getScore(sec.key,item.k,item.w,item.type) })
+    const el = document.getElementById(`ss-${sec.key}`)
+    if(el) el.textContent = s
+    total += s
+  })
+  document.getElementById('live-total').textContent = total
+  const pct = (total/200*100).toFixed(1)
+  document.getElementById('live-pct').textContent = pct
+  const badge = document.getElementById('live-badge')
+  if(parseFloat(pct)>=90){ badge.className='badge badge-pass'; badge.textContent='✅ ดีมาก (≥90%)' }
+  else if(parseFloat(pct)>=80){ badge.className='badge badge-warn'; badge.textContent='✅ ผ่านเกณฑ์ (80–89%)' }
+  else { badge.className='badge badge-fail'; badge.textContent='❌ ไม่ผ่านเกณฑ์ (<80%)' }
+  // show delete btn if existing record
+  checkExisting()
+}
+
+function checkExisting(){
+  const name = document.getElementById('nurse-name').value.trim()
+  const round = document.getElementById('round-sel').value
+  if(!name) return
+  const ex = records.find(r=>r.name===name && r.round===round)
+  document.getElementById('btn-delete').style.display = ex ? 'inline-flex' : 'none'
+}
+
+function getFormRecord(){
+  const name = document.getElementById('nurse-name').value.trim()
+  const round = document.getElementById('round-sel').value
+  const date = document.getElementById('audit-date').value
+  const auditor = document.getElementById('auditor').value.trim()
+  const scores = {}
+  const sectionTotals = {}
+  let total = 0
+  SECTIONS.forEach(sec => {
+    let s = 0
+    sec.items.forEach(item => {
+      const v = document.getElementById(`i-${sec.key}-${item.k}`)?.value || ''
+      scores[`${sec.key}_${item.k}`] = v
+      s += getScore(sec.key,item.k,item.w,item.type)
+    })
+    sectionTotals[sec.key] = s
+    total += s
+  })
+  return {name, round, date, auditor, scores, sectionTotals, total, savedAt: new Date().toISOString()}
+}
+
+function saveRecord(){
+  const name = document.getElementById('nurse-name').value.trim()
+  if(!name){ toast('⚠️ กรุณาระบุชื่อพยาบาล'); return }
+  const round = document.getElementById('round-sel').value
+  const rec = getFormRecord()
+  const idx = records.findIndex(r=>r.name===name && r.round===round)
+  if(idx>=0){
+    if(!confirm(`มีข้อมูลของ "${name}" ครั้งที่ ${round} อยู่แล้ว\nต้องการแทนที่ด้วยข้อมูลใหม่?`)) return
+    records[idx] = rec
+  } else {
+    records.push(rec)
+  }
+  saveData(records)
+  toast(`✅ บันทึก ${name} ครั้งที่ ${round} เรียบร้อยแล้ว`)
+  document.getElementById('btn-delete').style.display = 'inline-flex'
+}
+
+function deleteRecord(){
+  const name = document.getElementById('nurse-name').value.trim()
+  const round = document.getElementById('round-sel').value
+  if(!confirm(`ลบข้อมูลของ "${name}" ครั้งที่ ${round}?`)) return
+  records = records.filter(r=>!(r.name===name && r.round===round))
+  saveData(records)
+  document.getElementById('btn-delete').style.display = 'none'
+  toast('🗑 ลบเรียบร้อย')
+}
+
+function clearForm(){
+  document.getElementById('nurse-name').value = ''
+  document.getElementById('auditor').value = ''
+  SECTIONS.forEach(sec => {
+    sec.items.forEach(item => {
+      const el = document.getElementById(`i-${sec.key}-${item.k}`)
+      if(el) el.value = ''
+    })
+  })
+  calcLive()
+  document.getElementById('btn-delete').style.display = 'none'
+}
+
+// load existing when nurse name + round changes
+function tryLoadExisting(){
+  const name = document.getElementById('nurse-name').value.trim()
+  const round = document.getElementById('round-sel').value
+  if(!name) return
+  const rec = records.find(r=>r.name===name && r.round===round)
+  if(!rec) return
+  SECTIONS.forEach(sec => {
+    sec.items.forEach(item => {
+      const el = document.getElementById(`i-${sec.key}-${item.k}`)
+      if(el && rec.scores[`${sec.key}_${item.k}`]!==undefined){
+        el.value = rec.scores[`${sec.key}_${item.k}`]
+      }
+    })
+  })
+  calcLive()
+  toast(`📂 โหลดข้อมูลของ ${name} ครั้งที่ ${round}`)
+}
+
+// ==================== INDIVIDUAL PAGE ====================
+function renderIndividual(){
+  const q = (document.getElementById('search-input')?.value||'').toLowerCase()
+  const nurseMap = buildNurseMap()
+  const list = document.getElementById('individual-list')
+  const names = Object.keys(nurseMap).filter(n=>n.toLowerCase().includes(q)).sort()
+  if(!names.length){
+    list.innerHTML = `<div class="empty"><div class="empty-icon">👤</div><div class="empty-text">ยังไม่มีข้อมูล</div></div>`
+    return
+  }
+  list.innerHTML = names.map(name => {
+    const rd = nurseMap[name]
+    const vals = [1,2,3].map(i=>rd[i]?.total??null)
+    const valid = vals.filter(v=>v!==null)
+    const avg = valid.length ? valid.reduce((a,b)=>a+b,0)/valid.length : 0
+    const pct = (avg/200*100).toFixed(1)
+    const passClass = parseFloat(pct)>=80 ? 'badge-pass' : parseFloat(pct)>=70 ? 'badge-warn' : 'badge-fail'
+    const passText = parseFloat(pct)>=80 ? '✅ ผ่าน' : '❌ ต้องพัฒนา'
+    const roundCells = [1,2,3].map(i=>{
+      const s = vals[i-1]
+      const p = s!==null ? (s/200*100).toFixed(1) : null
+      const bg = s===null ? '#f9fafb' : parseFloat(p)>=80 ? '#f0fdf4' : parseFloat(p)>=70 ? '#fffbeb' : '#fef2f2'
+      const col = s===null ? '#9ca3af' : parseFloat(p)>=80 ? '#166534' : parseFloat(p)>=70 ? '#92400e' : '#b91c1c'
+      return `<div class="round-cell" style="background:${bg};border-color:${bg}">
+        <div class="round-label" style="color:${col}">ครั้งที่ ${i}</div>
+        <div class="round-num" style="color:${col}">${s!==null?s:'—'}</div>
+        <div class="round-pct" style="color:${col}">${p!==null?p+'%':'ยังไม่ตรวจ'}</div>
+      </div>`
+    }).join('')
+    const secBars = SECTIONS.map(sec=>{
+      const secVals = [1,2,3].map(i=>rd[i]?.sectionTotals?.[sec.key]??null).filter(v=>v!==null)
+      const sa = secVals.length ? secVals.reduce((a,b)=>a+b,0)/secVals.length : 0
+      const sp = sa/sec.max*100
+      const color = sp>=80?'#166534':sp>=60?'#b45309':'#b91c1c'
+      return `<div class="sec-row">
+        <span class="sec-row-label">${SEC_LABEL[sec.key]}</span>
+        <div class="sec-row-bar"><div class="prog-wrap"><div class="prog-fill" style="width:${sp.toFixed(0)}%;background:${color}"></div></div></div>
+        <span class="sec-row-val">${sa.toFixed(1)}/${sec.max} (${sp.toFixed(0)}%)</span>
+      </div>`
+    }).join('')
+    return `<div class="nurse-card">
+      <div class="nurse-header" onclick="toggleNurse(this)">
+        <div style="display:flex;align-items:center;gap:10px">
+          <span style="font-size:15px;font-weight:500">${name}</span>
+          <span class="badge ${passClass}" style="font-size:11px">${passText}</span>
+        </div>
+        <div style="display:flex;align-items:center;gap:10px">
+          <span style="font-size:13px;color:#6b7280">${valid.length}/3 ครั้ง | เฉลี่ย ${avg.toFixed(1)} (${pct}%)</span>
+          <span style="color:#9ca3af">▾</span>
+        </div>
+      </div>
+      <div class="nurse-body">
+        <div class="round-grid">${roundCells}</div>
+        <div style="font-size:12px;color:#6b7280;font-weight:500;margin-bottom:6px">คะแนนแต่ละหมวด (ค่าเฉลี่ย)</div>
+        ${secBars}
+        <div style="margin-top:10px;display:flex;justify-content:flex-end">
+          <button class="btn btn-secondary btn-sm" onclick="loadToForm('${name}')">✏️ กรอกข้อมูลเพิ่ม</button>
+        </div>
+      </div>
+    </div>`
+  }).join('')
+}
+
+function toggleNurse(el){
+  const body = el.nextElementSibling
+  body.classList.toggle('open')
+}
+
+function loadToForm(name){
+  document.getElementById('nurse-name').value = name
+  showPage('form', document.querySelector('.nav-btn'))
+  // find first missing round
+  const rd = buildNurseMap()[name] || {}
+  const missing = ['1','2','3'].find(r=>!rd[r])
+  if(missing) document.getElementById('round-sel').value = missing
+  tryLoadExisting()
+}
+
+// ==================== OVERVIEW PAGE ====================
+function renderOverview(){
+  const el = document.getElementById('overview-content')
+  if(!records.length){
+    el.innerHTML = `<div class="empty"><div class="empty-icon">📊</div><div class="empty-text">ยังไม่มีข้อมูล กรุณาบันทึกคะแนนก่อน</div></div>`
+    return
+  }
+  const nm = buildNurseMap()
+  const names = Object.keys(nm)
+  const allAvgs = names.map(n=>{
+    const v = [1,2,3].map(i=>nm[n][i]?.total??null).filter(x=>x!==null)
+    return v.length ? v.reduce((a,b)=>a+b,0)/v.length : 0
+  })
+  const overallAvg = allAvgs.reduce((a,b)=>a+b,0)/allAvgs.length
+  const passCount = allAvgs.filter(a=>a/200*100>=80).length
+  const totalRecs = records.length
+
+  const secAvgs = SECTIONS.map(sec=>{
+    const v = records.map(r=>r.sectionTotals?.[sec.key]??0)
+    return v.reduce((a,b)=>a+b,0)/v.length
+  })
+
+  const secBars = SECTIONS.map((sec,i)=>{
+    const pct = secAvgs[i]/sec.max*100
+    const color = pct>=80?'#166534':pct>=60?'#b45309':'#b91c1c'
+    return `<div class="sec-row">
+      <span class="sec-row-label">${SEC_LABEL[sec.key]}</span>
+      <div class="sec-row-bar"><div class="prog-wrap"><div class="prog-fill" style="width:${pct.toFixed(0)}%;background:${color}"></div></div></div>
+      <span class="sec-row-val">${secAvgs[i].toFixed(1)}/${sec.max} (${pct.toFixed(1)}%)</span>
+    </div>`
+  }).join('')
+
+  const tableRows = names.sort().map(name=>{
+    const rd = nm[name]
+    const s = [1,2,3].map(i=>rd[i]?.total??null)
+    const v = s.filter(x=>x!==null)
+    const avg = v.length?v.reduce((a,b)=>a+b,0)/v.length:0
+    const pct = (avg/200*100).toFixed(1)
+    const pass = parseFloat(pct)>=80
+    return `<tr>
+      <td>${name}</td>
+      <td style="text-align:center">${s[0]??'—'}</td>
+      <td style="text-align:center">${s[1]??'—'}</td>
+      <td style="text-align:center">${s[2]??'—'}</td>
+      <td style="text-align:center;font-weight:500">${avg.toFixed(1)}</td>
+      <td style="text-align:center">${pct}%</td>
+      <td style="text-align:center"><span class="badge ${pass?'badge-pass':'badge-fail'}" style="font-size:11px">${pass?'ผ่าน':'ต้องพัฒนา'}</span></td>
+    </tr>`
+  }).join('')
+
+  el.innerHTML = `
+    <div class="metric-grid">
+      <div class="metric"><div class="metric-label">พยาบาลทั้งหมด</div><div class="metric-val">${names.length} คน</div></div>
+      <div class="metric"><div class="metric-label">รายการที่ตรวจ</div><div class="metric-val">${totalRecs}</div></div>
+      <div class="metric"><div class="metric-label">คะแนนเฉลี่ย</div><div class="metric-val">${overallAvg.toFixed(1)}</div></div>
+      <div class="metric"><div class="metric-label">ร้อยละเฉลี่ย</div><div class="metric-val">${(overallAvg/200*100).toFixed(1)}%</div></div>
+      <div class="metric"><div class="metric-label">ผ่านเกณฑ์ ≥80%</div><div class="metric-val">${passCount}/${names.length}</div></div>
+    </div>
+
+    <div class="card" style="margin-bottom:14px">
+      <div class="card-header"><div class="card-header-title">คะแนนเฉลี่ยแต่ละหมวด</div></div>
+      <div class="card-body" style="padding-top:10px">${secBars}</div>
+    </div>
+
+    <div class="card">
+      <div class="card-header">
+        <div class="card-header-title">ตารางสรุปรายบุคคล</div>
+        <button class="btn btn-secondary btn-sm" onclick="exportExcel()">⬇️ Export Excel</button>
+      </div>
+      <div class="tbl-wrap">
+        <table>
+          <thead><tr>
+            <th>ชื่อพยาบาล</th>
+            <th style="text-align:center">ครั้ง 1</th>
+            <th style="text-align:center">ครั้ง 2</th>
+            <th style="text-align:center">ครั้ง 3</th>
+            <th style="text-align:center">เฉลี่ย</th>
+            <th style="text-align:center">ร้อยละ</th>
+            <th style="text-align:center">ผล</th>
+          </tr></thead>
+          <tbody>${tableRows}</tbody>
+        </table>
+      </div>
+    </div>`
+}
+
+// ==================== GUIDE PAGE ====================
+function renderGuide(){
+  const el = document.getElementById('guide-content')
+  let html = `
+    <div class="card" style="margin-bottom:12px">
+      <div class="card-header" style="background:#eff4ff">
+        <div class="card-header-title" style="color:#1e40af">วิธีให้คะแนน</div>
+      </div>
+      <div class="card-body" style="padding-top:12px">
+        <table><thead><tr><th>ค่า</th><th>ความหมาย</th></tr></thead><tbody>
+          <tr><td><strong>0</strong></td><td>ไม่มีการบันทึก</td></tr>
+          <tr><td><strong>1</strong></td><td>มีแต่ไม่สมบูรณ์ ขาดบางส่วน</td></tr>
+          <tr><td><strong>2</strong></td><td>มีและสมบูรณ์ถูกต้องครบถ้วน</td></tr>
+          <tr><td><strong>NF</strong></td><td>ไม่จำเป็นสำหรับเคสนี้ (Not Found/Not Applicable)</td></tr>
+          <tr><td><strong>0/5/10</strong></td><td>เฉพาะข้อ 9.1 — ให้คะแนนโดยตรง</td></tr>
+          <tr><td><strong>0/4/8</strong></td><td>เฉพาะข้อ 9.2 — ให้คะแนนโดยตรง</td></tr>
+        </tbody></table>
+        <div style="margin-top:12px;padding:10px 14px;background:var(--warn-bg);border-radius:var(--radius-sm);font-size:13px;color:var(--warn)">
+          ⚠️ เกณฑ์ผ่าน: คะแนนรวม ≥ 80% (≥160 คะแนน จาก 200)
+        </div>
+      </div>
+    </div>`
+
+  SECTIONS.forEach(sec => {
+    html += `<div class="card" style="margin-bottom:12px">
+      <div class="card-header ${sec.hdrClass}">
+        <div>
+          <div class="card-header-title ${sec.lblClass}">${sec.label}</div>
+          <div style="font-size:11px;color:#6b7280">${sec.sub} | เต็ม ${sec.max} คะแนน</div>
+        </div>
+      </div>
+      <div class="tbl-wrap">
+        <table><thead><tr><th>รายการ</th><th>น้ำหนัก</th><th>เต็ม</th><th>เกณฑ์การให้คะแนน</th></tr></thead><tbody>`
+    sec.items.forEach(item=>{
+      const criteria = item.type==='012'
+        ? `0=ไม่มี &nbsp; 1=ไม่สมบูรณ์ &nbsp; 2=สมบูรณ์`
+        : item.type==='0510'
+          ? `0=ไม่มีเลย &nbsp; 5=มีแต่ไม่ครบ/ไม่เซ็น &nbsp; 10=ครบสมบูรณ์`
+          : `0=อ่านไม่ออก &nbsp; 4=อ่านได้บางส่วน &nbsp; 8=อ่านออกชัดเจน`
+      html += `<tr>
+        <td>${item.label}${item.hint?`<br><span style="font-size:11px;color:#9ca3af">${item.hint}</span>`:''}</td>
+        <td style="text-align:center">${item.w??'—'}</td>
+        <td style="text-align:center">${item.max}</td>
+        <td style="font-size:12px">${criteria}</td>
+      </tr>`
+    })
+    html += `</tbody></table></div></div>`
+  })
+  el.innerHTML = html
+}
+
+// ==================== EXPORT ====================
+function exportExcel(){
+  if(!records.length){ toast('⚠️ ยังไม่มีข้อมูล'); return }
+  const nm = buildNurseMap()
+  const rows = [['ชื่อพยาบาล','ครั้งที่ 1','ครั้งที่ 2','ครั้งที่ 3','เฉลี่ย','ร้อยละ (%)','ผลการตรวจ',
+    ...SECTIONS.map(s=>s.label.split('—')[0].trim()+' (เฉลี่ย)'),
+    ...SECTIONS.map(s=>s.label.split('—')[0].trim()+' (เต็ม)')
+  ]]
+  Object.keys(nm).sort().forEach(name=>{
+    const rd = nm[name]
+    const s = [1,2,3].map(i=>rd[i]?.total??null)
+    const v = s.filter(x=>x!==null)
+    const avg = v.length?+(v.reduce((a,b)=>a+b,0)/v.length).toFixed(1):''
+    const pct = avg!==''?+((avg/200)*100).toFixed(1):''
+    const pass = pct!==''&&pct>=80?'ผ่าน':'ไม่ผ่าน'
+    const secAvgs = SECTIONS.map(sec=>{
+      const sv = [1,2,3].map(i=>rd[i]?.sectionTotals?.[sec.key]??null).filter(x=>x!==null)
+      return sv.length?+(sv.reduce((a,b)=>a+b,0)/sv.length).toFixed(1):''
+    })
+    rows.push([name, s[0]??'', s[1]??'', s[2]??'', avg, pct, pass, ...secAvgs, ...SECTIONS.map(s=>s.max)])
+  })
+  const ws = XLSX.utils.aoa_to_sheet(rows)
+  const wb = XLSX.utils.book_new()
+  XLSX.utils.book_append_sheet(wb,ws,'สรุปรายบุคคล')
+
+  // Detail sheet
+  const dRows = [['ชื่อ','ครั้งที่','วันที่ตรวจ','ผู้ตรวจ','คะแนนรวม','ร้อยละ',...SECTIONS.map(s=>SEC_LABEL[s.key])]]
+  records.forEach(r=>{
+    const pct = (r.total/200*100).toFixed(1)
+    dRows.push([r.name,r.round,r.date,r.auditor,r.total,pct,...SECTIONS.map(s=>r.sectionTotals?.[s.key]??'')])
+  })
+  const ws2 = XLSX.utils.aoa_to_sheet(dRows)
+  XLSX.utils.book_append_sheet(wb,ws2,'ข้อมูลทั้งหมด')
+  XLSX.writeFile(wb,`nursing_audit_${new Date().toISOString().slice(0,10)}.xlsx`)
+  toast('✅ Export Excel เรียบร้อย')
+}
+
+// ==================== HELPERS ====================
+function buildNurseMap(){
+  const m = {}
+  records.forEach(r=>{
+    if(!m[r.name]) m[r.name]={}
+    m[r.name][r.round]=r
+  })
+  return m
+}
+
+function showPage(id, btn){
+  document.querySelectorAll('.page').forEach(p=>p.classList.remove('active'))
+  document.querySelectorAll('.nav-btn').forEach(b=>b.classList.remove('active'))
+  document.getElementById('page-'+id).classList.add('active')
+  if(btn) btn.classList.add('active')
+  else document.querySelectorAll('.nav-btn')[['form','individual','overview','guide'].indexOf(id)]?.classList.add('active')
+  if(id==='individual') renderIndividual()
+  if(id==='overview') renderOverview()
+  if(id==='guide') renderGuide()
+}
+
+function toast(msg){
+  const t=document.getElementById('toast')
+  t.textContent=msg; t.classList.add('show')
+  clearTimeout(t._to)
+  t._to=setTimeout(()=>t.classList.remove('show'),2800)
+}
+
+// ==================== INIT ====================
+document.getElementById('audit-date').value = new Date().toISOString().split('T')[0]
+document.getElementById('nurse-name').addEventListener('change', tryLoadExisting)
+document.getElementById('round-sel').addEventListener('change', tryLoadExisting)
+buildForm()
+</script>
+</body>
+</html>
